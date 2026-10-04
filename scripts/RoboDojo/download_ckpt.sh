@@ -40,6 +40,10 @@ Examples:
   bash scripts/RoboDojo/download_ckpt.sh modelscope Meituan_robotic
   bash scripts/RoboDojo/download_ckpt.sh huggingface DM05
   bash scripts/RoboDojo/download_ckpt.sh modelscope DM05
+  bash scripts/RoboDojo/download_ckpt.sh huggingface Simate-beta
+  bash scripts/RoboDojo/download_ckpt.sh modelscope Simate-beta
+  bash scripts/RoboDojo/download_ckpt.sh huggingface KinRT
+  bash scripts/RoboDojo/download_ckpt.sh modelscope KinRT
 
 The selected policy is downloaded to:
   XPolicyLab/policy/<POLICY>/checkpoints
@@ -142,6 +146,7 @@ declare -A POLICY_NAME_MAP=(
   [gigaworldpolicy]="GigaWorldPolicy"
   [hrdt]="H_RDT"
   [internvlaa1]="InternVLA_A1"
+  [kinrt]="KinRT"
   [lda1b]="LDA_1B"
   [lingbotva]="LingBot_VA"
   [molmoact2]="MolmoACT2"
@@ -150,6 +155,11 @@ declare -A POLICY_NAME_MAP=(
   [pi05]="Pi_05"
   [rdt1b]="RDT_1B"
   [smolvla]="SmolVLA"
+  # Hugging Face folder is Simate-beta; ModelScope folder is SIPAI_AE.
+  # Both are the same checkpoint and link into the SIPAI adapter.
+  [simatebeta]="SIPAI"
+  [sipaiae]="SIPAI"
+  [sipai]="SIPAI"
   [spiritv15]="Spirit_v15"
   [starvlaalpha]="starVLA"
   # VLAct OFT ckpts share the starVLA adapter (same pattern as StarVla_alpha).
@@ -189,7 +199,7 @@ resolve_local_policy() {
 
 resolve_remote_policy() {
   local requested="$1"
-  local requested_key path name remote_key local_name alias_target tree_output
+  local requested_key path name remote_key local_name alias_target tree_output simate_remote_hit
   local -a matches=()
 
   requested_key="$(normalize_policy_name "${requested}")"
@@ -205,9 +215,19 @@ resolve_remote_policy() {
     [[ "${name}" != */* ]] || continue
     remote_key="$(normalize_policy_name "${name}")"
     local_name="${POLICY_NAME_MAP[${remote_key}]:-}"
+    # The two hosts publish this checkpoint under different directory names.
+    simate_remote_hit=0
+    case "${requested_key}" in
+      simatebeta|sipai|sipaiae)
+        case "${remote_key}" in
+          simatebeta|sipaiae) simate_remote_hit=1 ;;
+        esac
+        ;;
+    esac
     if [[ "${remote_key}" == "${requested_key}" \
       || ( -n "${local_name}" && "$(normalize_policy_name "${local_name}")" == "${requested_key}" ) \
-      || ( -n "${alias_target}" && "$(normalize_policy_name "${alias_target}")" == "${remote_key}" ) ]]; then
+      || ( -n "${alias_target}" && "$(normalize_policy_name "${alias_target}")" == "${remote_key}" ) \
+      || "${simate_remote_hit}" -eq 1 ]]; then
       matches+=("${name}")
     fi
   done <<< "${tree_output}"
